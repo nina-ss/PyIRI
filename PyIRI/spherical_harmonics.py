@@ -191,9 +191,9 @@ def IRI_monthly_mean_par(year, mth, aUT, alon, alat, coeff_dir,
     n_param = C.shape[0]
     n_IG12 = C.shape[1]
 
-    n_DFT_r = C.shape[2]
-    n_DFT_c = n_DFT_r // 2 + 1
-    F_DFT = real_DFT_func(aUT, n_DFT_c)
+    n_FS_r = C.shape[2]
+    n_FS_c = n_FS_r // 2 + 1
+    F_FS = real_FS_func(aUT, n_FS_c)
 
     n_SH = C.shape[3]
     lmax = int(np.sqrt(n_SH)) - 1
@@ -215,7 +215,7 @@ def IRI_monthly_mean_par(year, mth, aUT, alon, alat, coeff_dir,
                 F_SH = real_SH_func(lmax,
                     atheta[start:end, :],
                     aphi[start:end, :])
-                res = oe.contract('ij,opjk,kil->oilp', F_DFT[start:end, :],
+                res = oe.contract('ij,opjk,kil->oilp', F_FS[start:end, :],
                                   C, F_SH)
                 Params[:, start:end, :, :] = res
         elif n_time > n_pos:
@@ -230,11 +230,15 @@ def IRI_monthly_mean_par(year, mth, aUT, alon, alat, coeff_dir,
                 F_SH = real_SH_func(lmax,
                     atheta[:, start:end],
                     aphi[:, start:end])
-                res = oe.contract('ij,opjk,kil->oilp', F_DFT, C, F_SH)
+                res = oe.contract('ij,opjk,kil->oilp', F_FS, C, F_SH)
                 Params[:, :, start:end, :] = res
     elif coord == 'mlt':
         F_SH = real_SH_func(lmax, atheta, aphi)
-        Params = oe.contract('ij,opjk,kl->oilp', F_DFT, C, F_SH)
+        # Params = oe.contract('ij,opjk,kl->oilp', F_FS, C, F_SH)
+        Params = oe.contract('ij,opjk,kl->oilp', F_SH.T, C.transpose(0, 1, 3, 2), F_FS.T)
+        # F_SH (n_SH, n_pos) (k, l) # F_SH.T (n_pos, n_SH)
+        # C (2, 5, n_FS, n_SH) (o, p, j, k) # C.T (n_SH, n_FS)
+        # F_FS (n_time, n_FS) (i, j) # F_FS.T (n_FS, n_time)
 
     foF2 = Params[0, :, :, :]
     B0 = Params[1, :, :, :]
@@ -1222,37 +1226,37 @@ def real_SH_func(lmax: int, theta: np.ndarray, phi: np.ndarray) -> np.ndarray:
 
     return F_SH
 
-def real_DFT_func(atime_UT: np.ndarray, N_DFT_c: int) -> np.ndarray:
+def real_FS_func(atime_UT: np.ndarray, n_FS_c: int) -> np.ndarray:
     """
-    Generate a real-valued Discrete Fourier Transform (DFT) basis matrix for
-    time-series expansion.
+    Generate a real-valued Fourier Series (FS) basis matrix for time-series
+    expansion.
 
     Parameters
     ----------
     atime_UT : ndarray of shape (n_time,)
         User input time values in Universal Time (UT) hours [0-24).
 
-    N_DFT_c : int
+    n_FS_c : int
         Number of complex Fourier coefficients to use (i.e., truncation level).
 
     Returns
     -------
-    F_DFT : ndarray of shape (n_time, 2 * N_DFT_c - 1)
+    F_FS : ndarray of shape (n_time, 2 * n_FS_c - 1)
         Real-valued DFT basis matrix.
     """
     n_time = atime_UT.size
-    N_DFT_r = 2 * N_DFT_c - 1
-    F_DFT = np.empty((n_time, N_DFT_r))
+    n_FS_r = 2 * n_FS_c - 1
+    F_FS = np.empty((n_time, n_FS_r))
 
-    k_vals = np.arange(1, N_DFT_c)
+    k_vals = np.arange(1, n_FS_c)
     omega = 2 * np.pi * k_vals / 24 
     phase = np.outer(atime_UT, omega)
 
-    F_DFT[:, 0] = 1
-    F_DFT[:, 1::2] = np.cos(phase)
-    F_DFT[:, 2::2] = np.sin(phase)
+    F_FS[:, 0] = 1
+    F_FS[:, 1::2] = np.cos(phase)
+    F_FS[:, 2::2] = np.sin(phase)
 
-    return F_DFT
+    return F_FS
 
 
 def load_coeff_matrices(mth: int, coeff_dir: str, foF2_coeff: str, 
@@ -1267,17 +1271,17 @@ def load_coeff_matrices(mth: int, coeff_dir: str, foF2_coeff: str,
     hmF2_model: str, name of the hmF2 model to use
 
     Returns:
-    C: np.ndarray (n_params, n_IG12, n_DFT, n_SH)
+    C: np.ndarray (n_params, n_IG12, n_FS, n_SH)
         Coefficient matrix. n_params is the number of parameters (n_params=5
         if hmF2_model != 'BSE1979' else n_params=6), n_IG12=2 is the number of
-        IG12 values stored (IG12=0 and IG12=100), n_DFT=9 is the number of
+        IG12 values stored (IG12=0 and IG12=100), n_FS=9 is the number of
         real DFT coefficients used, and n_SH=900 is the number of real SH
         coefficients used.
     """
 
     filenames = [f'foF2_{foF2_coeff}.nc', 'B0.nc', 'B1.nc', 'M3000F2.nc']
 
-    path = os.path.join(coeff_dir, 'SH', filenames[0])
+    path = os.path.join(coeff_dir, 'SH_new', filenames[0])
     with nc.Dataset(path) as ds:
         C_mth = ds['Coefficients'][:, mth - 1, :, :]
         n_IG12 = C_mth.shape[0]
@@ -1287,14 +1291,14 @@ def load_coeff_matrices(mth: int, coeff_dir: str, foF2_coeff: str,
 
     for ids in range(len(filenames)):
         fname = filenames[ids]
-        path = os.path.join(coeff_dir, 'SH', fname)
+        path = os.path.join(coeff_dir, 'SH_new', fname)
         with nc.Dataset(path) as ds:
             C_mth = ds['Coefficients'][:, mth - 1, :, :]
             coeffs[ids, :, :, :] = C_mth
 
     # Optionally add hmF2 coefficients
     if hmF2_model != 'BSE1979':
-        hmF2_path = os.path.join(coeff_dir, 'SH', f'hmF2_{hmF2_model}.nc')
+        hmF2_path = os.path.join(coeff_dir, 'SH_new', f'hmF2_{hmF2_model}.nc')
         with nc.Dataset(hmF2_path) as ds:
             C_mth = ds['Coefficients'][:, mth - 1, :, :]
             C_mth = C_mth[np.newaxis, :, :, :]
