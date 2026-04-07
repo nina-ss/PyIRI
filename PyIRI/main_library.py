@@ -2848,11 +2848,11 @@ def solar_interpolation_of_dictionary_F2(F, F107, hmF2_model, v=2):
         if (key in ['fo', 'B_top', 'B_bot']
                 or (key == 'hm' and hmF2_model == 'SHU2015')):
             F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
-                                           solidx='IG12', solmin=0, slomax=100)
+                                           solidx='IG12', solmin=0, solmax=100)
 
         else:
             F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
-                                           solidx='R12', solmin=0, slomax=100)
+                                           solidx='R12', solmin=0, solmax=100)
 
         F_new[key] = np.swapaxes(F_new[key], 0, 1)
 
