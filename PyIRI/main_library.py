@@ -352,7 +352,7 @@ def IRI_density_1day(year, mth, day, aUT, alon, alat, aalt, F107, coeff_dir,
     F2 = solar_interpolation_of_dictionary(F2, F107)
     F1 = solar_interpolation_of_dictionary(F1, F107)
     E = solar_interpolation_of_dictionary(E, F107)
-    Es = solar_interpolation_of_dictionary(Es, F107, use_R12=True)
+    Es = solar_interpolation_of_dictionary(Es, F107, use_R12_Es=True)
 
     # Correct for linear interpolation in fo
     F2['Nm'] = freq2den(F2['fo'])
@@ -2671,7 +2671,8 @@ def fractional_correction_of_dictionary(fraction1, fraction2, F_before,
     return F_new
 
 
-def solar_interpolate(F_min, F_max, F107):
+def solar_interpolate(F_min, F_max, F107, solidx='IG12', solmin=0, solmax=100,
+                      v=2):
     """Interpolate given array to provided F10.7 level.
 
     Parameters
@@ -2682,6 +2683,8 @@ def solar_interpolate(F_min, F_max, F107):
         Any given array of parameters that corresponds to solar max.
     F107 : float
         Given solar flux index in SFU.
+    v : int
+        Sunspot number series version (v2.0 assumes the post-2015 correction).
 
     Returns
     -------
@@ -2705,65 +2708,24 @@ def solar_interpolate(F_min, F_max, F107):
     model: A review and description of an ionospheric benchmark, Reviews
     of Geophysics, 60.
 
-    """
-    # min and max of IG12 Ionospheric Global Index
-    IG12_min = 0.
-    IG12_max = 100.
-
-    IG12 = F107_2_IG12(F107)
-
-    # linear interpolation of the whole matrix:
-    # https://en.wikipedia.org/wiki/Linear_interpolation
-    F = (F_min * (IG12_max - IG12) / (IG12_max - IG12_min)
-         + F_max * (IG12 - IG12_min) / (IG12_max - IG12_min))
-
-    return F
-
-
-def solar_interpolate_R12(F_min, F_max, R12):
-    """Interpolate given array to provided R12 level.
-
-    Parameters
-    ----------
-    F_min : array-like
-        Any given array of parameters that corresponds to solar min.
-    F_max : array-like
-        Any given array of parameters that corresponds to solar max.
-    R12 : float
-        Given R12 index (12-month running mean of sunspot number).
-
-    Returns
-    -------
-    F : array-like
-        Parameters interpolated to the given R12.
-
-    Notes
-    -----
-    This function interpolates the given F_min and F_max parameters
-    (corresponding to solar min and solar max) to the given R12 index.
-    The R12 reference points corresponding to solar min and max are
-    R12=10 and 180 as specified by Leftin, 1968.
-
-    References
-    ----------
     Leftin, M., Ostrow, S. M., and Preston, C. (1968), Numerical Maps of
     foEs for Solar Cycle Minimum and Maximum, ESSA Tech Report ERL 73-ITS63,
     US GPO, Washington, DC.
 
     """
-    # min and max of IG12 Ionospheric Global Index
-    R12_min = 10.
-    R12_max = 180.
+    if solidx == 'IG12':
+        sol = F107_2_IG12(F107, v=v)
+    elif solidx == 'R12':
+        sol = F107_2_R12(F107)
 
-    # linear interpolation of the whole matrix:
-    # https://en.wikipedia.org/wiki/Linear_interpolation
-    F = (F_min * (R12_max - R12) / (R12_max - R12_min)
-         + F_max * (R12 - R12_min) / (R12_max - R12_min))
+    # Linear interpolation
+    F = (F_min * (solmax - sol) / (solmax - solmin)
+         + F_max * (sol - solmin) / (solmax - solmin))
 
     return F
 
 
-def solar_interpolation_of_dictionary(F, F107, use_R12=False):
+def solar_interpolation_of_dictionary(F, F107, use_R12_Es=False, v=2):
     """Interpolate given dictionary to provided F10.7.
 
     Parameters
@@ -2773,9 +2735,10 @@ def solar_interpolation_of_dictionary(F, F107, use_R12=False):
         specified as 1st dimension.
     F107 : float
         Interpolate to this particular level of F10.7.
-    use_R12 : bool
-        Convert F10.7 to R12 and use R12 to perform the interpolation
-        (default = False)
+    use_R12_Es: bool
+        Use R12 linear interpolation for Es layer (R12=10-180).
+    v : int
+        Sunspot number series version (v2.0 assumes the post-2015 correction).
 
     Returns
     -------
@@ -2791,10 +2754,10 @@ def solar_interpolation_of_dictionary(F, F107, use_R12=False):
     of 0 and 100. The F10.7 is first converted to IG12 and then the
     interpolation is occurred.
 
-    If use_R12 is set to 'True', F10.7 is converted to a corresponding R12
+    If use_R12_Es is set to 'True', F10.7 is converted to a corresponding R12
     index and this is used to interpolate the provided dictionary. The R12
     reference points corresponding to solar min and max are R12=10 and 180
-    as specified by Leftin, 1968. (This is required for foEs interpolation)
+    as specified by Leftin, 1968. (This is required for foEs interpolation.)
 
     References
     ----------
@@ -2818,11 +2781,78 @@ def solar_interpolation_of_dictionary(F, F107, use_R12=False):
         F_key = F[key]
         F_key = np.swapaxes(F_key, 0, 2)
 
-        if use_R12:
-            R12 = F107_2_R12(F107)
-            F_new[key] = solar_interpolate_R12(F_key[0, :], F_key[1, :], R12)
+        if use_R12_Es:
+            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
+                                           solidx='R12', solmin=10, solmax=180)
         else:
-            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107)
+            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
+                                           solidx='IG12', solmin=0, solmax=100)
+
+        F_new[key] = np.swapaxes(F_new[key], 0, 1)
+
+    return F_new
+
+
+def solar_interpolation_of_dictionary_F2(F, F107, hmF2_model, v=2):
+    """Interpolate given F2 dictionary to provided F10.7.
+
+    Parameters
+    ----------
+    F : dict
+        Dictionary of F2 parameters with 2 levels of solar activity
+        specified as 1st dimension.
+    F107 : float
+        Interpolate to this particular level of F10.7.
+    hmF2_model : str
+        Model used for hmF2 (SHU2015, AMTB2013, BSE1979).
+    v : int
+        Sunspot number series version (v2.0 assumes the post-2015 correction).
+
+    Returns
+    -------
+    F_new : dict
+        F2 Parameters interpolated to the given F10.7.
+
+    Notes
+    -----
+    This function looks at each key in the F2 layer dictionary and interpolates
+    it between solar min and solar max to the given F10.7 value using either
+    R12 or IG12 linear interpolation.
+
+    By default, the reference points are set in terms of IG12/R12 coefficients
+    of 0 and 100. The F10.7 is first converted to IG12/R12 and then the
+    interpolation is occurred.
+
+    IG12 interpolation is used for the parameters foF2 (CCIR and URSI) and
+    hmF2 SHUBIN-2015, whereas R12 is used for the parameters M(3000)F2,
+    B0, B1, and hmF2 AMTB-2013.
+
+    References
+    ----------
+    Forsythe et al. (2023), PyIRI: Whole-Globe Approach to the
+    International Reference Ionosphere Modeling Implemented in Python,
+    Space Weather.
+
+    Bilitza et al. (2022), The International Reference Ionosphere
+    model: A review and description of an ionospheric benchmark, Reviews
+    of Geophysics, 60.
+
+    """
+    # Make dictionary with same elements as initial array
+    F_new = F
+
+    for key in F:
+        F_key = F[key]
+        F_key = np.swapaxes(F_key, 0, 2)
+
+        if (key in ['fo', 'B_top', 'B_bot']
+                or (key == 'hm' and hmF2_model == 'SHU2015')):
+            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
+                                           solidx='IG12', solmin=0, slomax=100)
+
+        else:
+            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
+                                           solidx='R12', solmin=0, slomax=100)
 
         F_new[key] = np.swapaxes(F_new[key], 0, 1)
 

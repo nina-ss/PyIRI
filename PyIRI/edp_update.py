@@ -367,7 +367,7 @@ def IRI_density_1day(year, mth, day, aUT, alon, alat, aalt, F107, coeff_dir,
     F2 = main.solar_interpolation_of_dictionary(F2, F107)
     F1 = main.solar_interpolation_of_dictionary(F1, F107)
     E = main.solar_interpolation_of_dictionary(E, F107)
-    Es = main.solar_interpolation_of_dictionary(Es, F107, use_R12=True)
+    Es = main.solar_interpolation_of_dictionary(Es, F107, use_R12_Es=True)
 
     # Correct for linear interpolation in fo
     F2['Nm'] = main.freq2den(F2['fo'])
