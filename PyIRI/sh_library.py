@@ -422,7 +422,7 @@ def IRI_density_1day(year, month, day, aUT, alon, alat, aalt, F107,
     mag = ml.fractional_correction_of_dictionary(fr1, fr2, mag_1, mag_2)
 
     # Interpolate parameters in solar activity
-    F2 = ml.solar_interpolation_of_dictionary(F2, F107)
+    F2 = ml.solar_interpolation_of_dictionary_F2(F2, F107, hmF2_model)
     F1 = ml.solar_interpolation_of_dictionary(F1, F107)
     E = ml.solar_interpolation_of_dictionary(E, F107)
 
