@@ -834,9 +834,9 @@ def run_seas_iri_reg_grid(year, month, coeff_dir=None, hr_res=1, lat_res=1,
         alt_min=alt_min, alt_max=alt_max, coord=coord)
 
     # Run IRI for monthly mean parameters
-    F2, F1, E, sun, mag = IRI_monthly_mean_par(year, month, aUT, alon, alat,
-                                               coeff_dir, foF2_coeff,
-                                               hmF2_model, coord)
+    F2, F1, E, Es, sun, mag = IRI_monthly_mean_par(year, month, aUT, alon, alat,
+                                                   coeff_dir, foF2_coeff,
+                                                   hmF2_model, coord)
 
     return alon, alat, alon_2d, alat_2d, aalt, aUT, F2, F1, E, Es, sun, mag
 
