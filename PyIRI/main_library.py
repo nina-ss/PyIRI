@@ -352,7 +352,8 @@ def IRI_density_1day(year, mth, day, aUT, alon, alat, aalt, F107, coeff_dir,
     F2 = solar_interpolation_of_dictionary(F2, F107)
     F1 = solar_interpolation_of_dictionary(F1, F107)
     E = solar_interpolation_of_dictionary(E, F107)
-    Es = solar_interpolation_of_dictionary(Es, F107, use_R12_Es=True)
+    Es = solar_interpolation_of_dictionary(Es, F107, solidx='R12', solmin=10,
+                                           solmax=180)
 
     # Correct for linear interpolation in fo
     F2['Nm'] = freq2den(F2['fo'])
@@ -2725,7 +2726,8 @@ def solar_interpolate(F_min, F_max, F107, solidx='IG12', solmin=0, solmax=100,
     return F
 
 
-def solar_interpolation_of_dictionary(F, F107, use_R12_Es=False, v=2):
+def solar_interpolation_of_dictionary(F, F107, solidx='IG12', solmin=0,
+                                      solmax=100, v=2):
     """Interpolate given dictionary to provided F10.7.
 
     Parameters
@@ -2781,12 +2783,9 @@ def solar_interpolation_of_dictionary(F, F107, use_R12_Es=False, v=2):
         F_key = F[key]
         F_key = np.swapaxes(F_key, 0, 2)
 
-        if use_R12_Es:
-            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
-                                           solidx='R12', solmin=10, solmax=180)
-        else:
-            F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
-                                           solidx='IG12', solmin=0, solmax=100)
+        F_new[key] = solar_interpolate(F_key[0, :], F_key[1, :], F107, v=v,
+                                       solidx=solidx, solmin=solmin,
+                                       solmax=solmax)
 
         F_new[key] = np.swapaxes(F_new[key], 0, 1)
 

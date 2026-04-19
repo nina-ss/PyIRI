@@ -660,7 +660,8 @@ def sporadic_E_1day(year, month, day, aUT, alon, alat, F107, coeff_dir=None,
     Es = ml.fractional_correction_of_dictionary(fr1, fr2, Es_1, Es_2)
 
     # Interpolate parameters in solar activity
-    Es = ml.solar_interpolation_of_dictionary(Es, F107)
+    Es = ml.solar_interpolation_of_dictionary(Es, F107, solidx='R12',
+                                              solmin=0, solmax=100)
 
     # Correct for linear interpolation for foEs
     Es['Nm'] = ml.freq2den(Es['fo'])
