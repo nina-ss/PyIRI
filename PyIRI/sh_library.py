@@ -674,6 +674,13 @@ def run_iri_reg_grid(year, month, day, F107, coeff_dir=None, hr_res=1,
         'B_top' : Bottom thickness of the E region [km].
         'B_bot' : Bottom thickness of the E region [km].
         Shape (N_T, N_G)
+    Es : dict
+        'Nm' : Peak density of Es region [m-3].
+        'fo' : Critical frequency of Es region [MHz].
+        'hm' : Height of the Es peak [km].
+        'B_top' : Bottom thickness of the Es region [km].
+        'B_bot' : Bottom thickness of the Es region [km].
+        Shape (N_T, N_G)
     sun : dict
         'lon' : Longitude of subsolar point [deg].
         'lat' : Latitude of subsolar point [deg].
@@ -702,11 +709,11 @@ def run_iri_reg_grid(year, month, day, F107, coeff_dir=None, hr_res=1,
         alt_min=alt_min, alt_max=alt_max, coord=coord)
 
     # Run IRI for one day
-    F2, F1, E, sun, mag, EDP = IRI_density_1day(
+    F2, F1, E, Es, sun, mag, EDP = IRI_density_1day(
         year, month, day, aUT, alon, alat, aalt, F107, coeff_dir,
         foF2_coeff, hmF2_model, coord)
 
-    return alon, alat, alon_2d, alat_2d, aalt, aUT, F2, F1, E, sun, mag, EDP
+    return alon, alat, alon_2d, alat_2d, aalt, aUT, F2, F1, E, Es, sun, mag, EDP
 
 
 def run_seas_iri_reg_grid(year, month, coeff_dir=None, hr_res=1, lat_res=1,
@@ -795,6 +802,13 @@ def run_seas_iri_reg_grid(year, month, coeff_dir=None, hr_res=1, lat_res=1,
         'B_top' : Bottom thickness of the E region [km].
         'B_bot' : Bottom thickness of the E region [km].
         Shape (N_T, N_G, 2)
+    Es : dict
+        'Nm' : Peak density of Es region [m-3].
+        'fo' : Critical frequency of Es region [MHz].
+        'hm' : Height of the Es peak [km].
+        'B_top' : Bottom thickness of the Es region [km].
+        'B_bot' : Bottom thickness of the Es region [km].
+        Shape (N_T, N_G, 2)
     sun : dict
         'lon' : Longitude of subsolar point [deg].
         'lat' : Latitude of subsolar point [deg].
@@ -824,7 +838,7 @@ def run_seas_iri_reg_grid(year, month, coeff_dir=None, hr_res=1, lat_res=1,
                                                coeff_dir, foF2_coeff,
                                                hmF2_model, coord)
 
-    return alon, alat, alon_2d, alat_2d, aalt, aUT, F2, F1, E, sun, mag
+    return alon, alat, alon_2d, alat_2d, aalt, aUT, F2, F1, E, Es, sun, mag
 
 
 def load_coeff_matrices(month, coeff_dir=None, foF2_coeff='URSI',
@@ -886,40 +900,6 @@ def load_coeff_matrices(month, coeff_dir=None, foF2_coeff='URSI',
             C_month = ds['Coefficients'][:, month - 1, :, :]
             C_month = C_month[np.newaxis, :, :, :]
             C = np.concatenate([C, C_month], axis=0)
-
-    return C
-
-
-def load_Es_coeff_matrix(month, coeff_dir=None):
-    """Load sporadic E layer coefficient matrix from its NetCDF file.
-
-    Parameters
-    ----------
-    month : int
-        Month of the year.
-    coeff_dir: str
-        Directory where the coefficient files are stored. If None, uses the
-        default coefficient files stored in PyIRI.coeff_dir. (default=None)
-
-    Returns
-    -------
-    C : numpy.ndarray
-        Coefficient matrix. N_IG=2 is the number of IG12 values stored (IG12=0
-        and IG12=100), N_FS=9 is the number of real FS coefficients used, and
-        N_SH=8100 is the number of real SH coefficients used.
-        Shape (N_IG, N_FS, N_SH)
-
-    """
-    # Set coefficient file path if none given
-    if coeff_dir is None:
-        coeff_dir = PyIRI.coeff_dir
-
-    # Load Es coefficients
-    filename = 'foEs.nc'
-
-    path = os.path.join(coeff_dir, 'SH', filename)
-    with nc.Dataset(path) as ds:
-        C = ds['Coefficients'][:, month - 1, :, :]
 
     return C
 
